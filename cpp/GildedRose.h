@@ -20,5 +20,7 @@ public:
     GildedRose(vector<Item> & items);
     
     void updateQuality();
+    static char const * const AGED_BRIE_NAME;
+    static char const * const SULFURAS_NAME;
 };
 

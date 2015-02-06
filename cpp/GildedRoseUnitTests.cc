@@ -2,68 +2,127 @@
 
 #include "GildedRose.h"
 
+static char const *const BACKSTAGE_PASSES_NAME = "Backstage passes to a TAFKAL80ETC concert";
+
 class GildedRoseTest : public testing::Test {
-protected:
+public:
     static const int SELL_IN = 5;
     static const int QUALITY = 10;
     static const int QUALITY_CAP = 50;
-    vector<Item> m_items;
+    static const int SULFURAS_QUALITY = 80;
+    std::string m_item_name;
 
-    Item GetUpdatedItem(const Item &item) {
-        m_items.push_back(item);
-        GildedRose app(m_items);
+    GildedRoseTest(std::string item_name) {
+      m_item_name = item_name;
+    }
+
+    Item GetUpdatedItem(int sell_in, int quality) {
+        Item item(m_item_name.c_str(), sell_in, quality);
+        std::vector<Item> items;
+        items.push_back(item);
+        GildedRose app(items);
         app.updateQuality();
         return app.items[0];
     }
-
 };
+
+class GildedRoseGenericItem : public GildedRoseTest{
+public:
+    GildedRoseGenericItem() : GildedRoseTest("foo") {}
+};
+class GildedRoseBrieItem : public GildedRoseTest{
+public:
+  GildedRoseBrieItem() : GildedRoseTest(GildedRose::AGED_BRIE_NAME){}
+};
+class GildedRoseSulfurasItem : public GildedRoseTest{
+public:
+  GildedRoseSulfurasItem() : GildedRoseTest(GildedRose::SULFURAS_NAME){}
+};
+
 const int GildedRoseTest::QUALITY;
 const int GildedRoseTest::QUALITY_CAP;
 const int GildedRoseTest::SELL_IN;
+const int GildedRoseTest::SULFURAS_QUALITY;
 
-TEST_F(GildedRoseTest,  NormalItemQualityDecreasesBeforeSellIn) {
-    EXPECT_EQ(QUALITY - 1, GetUpdatedItem(Item("Foo", SELL_IN, QUALITY)).quality);
+TEST_F(GildedRoseGenericItem,  NormalItemQualityDecreasesBeforeSellIn) {
+    EXPECT_EQ(QUALITY - 1, GetUpdatedItem(SELL_IN, QUALITY).quality);
 }
 
-TEST_F(GildedRoseTest,  SellInDecreases) {
-    EXPECT_EQ(SELL_IN - 1, GetUpdatedItem(Item("Foo", SELL_IN, QUALITY)).sellIn);
+TEST_F(GildedRoseGenericItem,  SellInDecreases) {
+    EXPECT_EQ(SELL_IN - 1, GetUpdatedItem(SELL_IN, QUALITY).sellIn);
 }
 
-TEST_F(GildedRoseTest,  NormalItemQualityDecrease2xAfterSellIn) {
-    EXPECT_EQ(QUALITY - 2, GetUpdatedItem(Item("Foo", 0, QUALITY)).quality);
+TEST_F(GildedRoseGenericItem,  NormalItemQualityDecrease2xAfterSellIn) {
+    EXPECT_EQ(QUALITY - 2, GetUpdatedItem(0, QUALITY).quality);
 }
 
-TEST_F(GildedRoseTest,  ItemQualityNeverNegative) {
-    EXPECT_EQ(0, GetUpdatedItem(Item("Foo", SELL_IN, 0)).quality);
+TEST_F(GildedRoseGenericItem,  ItemQualityNeverNegative) {
+    EXPECT_EQ(0, GetUpdatedItem(SELL_IN, 0).quality);
 }
 
-TEST_F(GildedRoseTest,  ItemQualityNeverNegativeWhenSellInZero) {
-    EXPECT_EQ(0, GetUpdatedItem(Item("Foo", 0, 1)).quality);
+TEST_F(GildedRoseGenericItem,  ItemQualityNeverNegativeWhenSellInZero) {
+    EXPECT_EQ(0, GetUpdatedItem(0, 1).quality);
 }
 
-TEST_F(GildedRoseTest,  AgedBrieQualityIncreases) {
-    ASSERT_LT(QUALITY, QUALITY_CAP);
-    EXPECT_EQ(QUALITY + 1, GetUpdatedItem(Item("Aged Brie", SELL_IN, QUALITY)).quality);
-}
-
-TEST_F(GildedRoseTest,  AgedBrieQualityHasCeiling)
+TEST_F(GildedRoseBrieItem,  AgedBrieQualityIncreases)
 {
-    EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(Item("Aged Brie", SELL_IN, QUALITY_CAP)).quality);
+  ASSERT_LT(QUALITY, QUALITY_CAP);
+  EXPECT_EQ(QUALITY + 1, GetUpdatedItem(SELL_IN, QUALITY).quality);
 }
 
-TEST_F(GildedRoseTest,  ExpiredAgedBrieQualityHasCeiling) {
-    EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(Item("Aged Brie", 0, QUALITY_CAP - 1)).quality);
-    EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(Item("Aged Brie", 0, QUALITY_CAP)).quality);
+TEST_F(GildedRoseBrieItem,  AgedBrieQualityHasCeiling)
+{
+  EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(SELL_IN, QUALITY_CAP).quality);
+}
+
+TEST_F(GildedRoseBrieItem,  ExpiredAgedBrieQualityHasCeiling)
+{
+  EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(0, QUALITY_CAP - 1).quality);
+  EXPECT_EQ(QUALITY_CAP, GetUpdatedItem(0, QUALITY_CAP).quality);
+}
+
+TEST_F(GildedRoseSulfurasItem,  SulfurasQualityNeverDecreases)
+{
+  EXPECT_EQ(SULFURAS_QUALITY, GetUpdatedItem(0, SULFURAS_QUALITY).quality);
+}
+
+class GildedRoseBackstagePassesItem : public GildedRoseTest{
+public:
+  GildedRoseBackstagePassesItem() : GildedRoseTest(BACKSTAGE_PASSES_NAME){}
+};
+
+TEST_F(GildedRoseBackstagePassesItem,  PassesIncreaseInQualityBeforeSellIn)
+{
+  EXPECT_EQ(QUALITY + 1, GetUpdatedItem(15, QUALITY).quality);
+}
+
+TEST_F(GildedRoseBackstagePassesItem,  PassesIncreaseInQualityByTwoLessThanTenDays)
+{
+  for(int sellin = 10; sellin > 5; sellin--) {
+    EXPECT_EQ(QUALITY + 2, GetUpdatedItem(sellin, QUALITY).quality);
+  }
+}
+
+TEST_F(GildedRoseBackstagePassesItem,  PassesIncreaseInQualityByThreeLessThanFiveDays)
+{
+  for(int sellin = 5; sellin > 0; sellin--) {
+    EXPECT_EQ(QUALITY + 3, GetUpdatedItem(sellin, QUALITY).quality);
+  }
+}
+
+TEST_F(GildedRoseBackstagePassesItem,  PassesGotoZeroAfterConcert)
+{
+  EXPECT_EQ(0, GetUpdatedItem(0, QUALITY).quality);
 }
 
 void example()
 {
     vector<Item> items;
     items.push_back(Item("+5 Dexterity Vest", 10, 20));
-    items.push_back(Item("Aged Brie", 2, 0));
+    items.push_back(Item(GildedRose::AGED_BRIE_NAME, 2, 0));
     items.push_back(Item("Elixir of the Mongoose", 5, 7));
-    items.push_back(Item("Sulfuras, Hand of Ragnaros", 0, 80));
-    items.push_back(Item("Backstage passes to a TAFKAL80ETC concert", 15, 20));
+    items.push_back(Item("Sulfuras, Hand of Ragnaros", 0, GildedRoseTest::SULFURAS_QUALITY));
+    items.push_back(Item(BACKSTAGE_PASSES_NAME, 15, 20));
     items.push_back(Item("Conjured Mana Cake", 3, 6));
     GildedRose app(items);
     app.updateQuality();
